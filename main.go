@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -13,6 +15,29 @@ var tpl = template.Must(template.ParseFiles("index.html"))
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tpl.Execute(w, nil)
+}
+
+// Essa rota espera dois parâmetros de consulta: "q" representa a consulta do usuário e "page" é usado para
+// percorrer os resultados. Este parâmetro page é opcional. Se não estiver incluído no URL, presumiremos
+// apenas que a página é 1.
+func searchHandler(w http.ResponseWriter, r *http.Request) {
+	u, err := url.Parse(r.URL.String())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	params := u.Query()
+	searchQuery := params.Get("q")
+	page := params.Get("page")
+	if page == "" {
+		page = "1"
+	}
+
+	fmt.Println("Search Query is: ", searchQuery)
+	fmt.Println("Page is: ", page)
+
+	// O código acima extrai os parâmetros "q" e "page" da URL de requisição e os imprime na saída padrão.
 }
 
 func main() {
@@ -27,27 +52,16 @@ func main() {
 		port = "3000"
 	}
 
-	// instancia um objeto file server passando o diretório onde todos os nossos arquivos estáticos estão
 	fs := http.FileServer(http.Dir("assets"))
 
 	mux := http.NewServeMux()
 
-	// precisamos dizer ao nosso router para usar este objeto de file server para todos
-	// os caminhos que começam com o prefixo /assets/:
-
-	// O método http.StripPrefix() modifica o URL da requisição removendo o prefixo especificado
-	// antes de encaminhar a tratamento da requisição ao http.Handler no segundo parâmetro.
-
-	// Se uma requisição for feita para o arquivo /assets/style.css, StripPrefix() cortará o /assets/
-	// e encaminhará a requisição modificada para o handler retornado por http.FileServer()
-	// para que ele veja o resource solicitado como style.css. Em seguida, ele procurará e servirá o resource
-	// relativo à pasta especificada como o diretório raiz para o arquivo estático.
-
-	// O uso de Handle em vez de HandleFunc aqui, ocorre porque o método http.FileServer()
-	// retorna um tipo http.Handler em vez de um HandlerFunc
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
-
+	// Registre a função searchHandler como handler para o padrão /search conforme mostrado abaixo
+	mux.HandleFunc("/search", searchHandler)
 	mux.HandleFunc("/", indexHandler)
 
 	http.ListenAndServe(":"+port, mux)
 }
+
+//faça o build rode o código e faça uma busca, verifique no terminal o resultado com o nome da query + numero da página
