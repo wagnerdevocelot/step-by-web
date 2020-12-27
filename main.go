@@ -1,12 +1,14 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -17,8 +19,24 @@ var newsapi *news.Client
 
 var tpl = template.Must(template.ParseFiles("index.html"))
 
+// Search representa as quesries feitas pelo usuário
+type Search struct {
+	Query      string
+	NextPage   int
+	TotalPages int
+	Results    *news.Results
+}
+
+// também podemos atualizar o indexHandler para que o template não seja mais executado diretamente no ResponseWriter
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	tpl.Execute(w, nil)
+	buf := &bytes.Buffer{}
+	err := tpl.Execute(buf, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	buf.WriteTo(w)
 }
 
 func searchHandler(newsapi *news.Client) http.HandlerFunc {
@@ -36,16 +54,40 @@ func searchHandler(newsapi *news.Client) http.HandlerFunc {
 			page = "1"
 		}
 
-		// A query e as variáveis ​​de page são passadas como argumentos para FetchEverything()
-		// e a resposta JSON é decodificada e armazenada na variável de results que é
-		// subsequentemente impressa na saída padrão.
 		results, err := newsapi.FetchEverything(searchQuery, page)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		fmt.Printf("%+v", results)
+		// A variável page é convertida em um inteiro e atribuída a nextPage, então uma instância da struct
+		// Search é criada com todos os campos necessários.
+		nextPage, err := strconv.Atoi(page)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// TotalPages é calculado dividindo o número de resultados pelo tamanho da página e arredondando o resultado
+		// para o número inteiro mais próximo. Isso ajudará na hora de adicionar paginação ao webapp.
+		search := &Search{
+			Query:      searchQuery,
+			NextPage:   nextPage,
+			TotalPages: int(math.Ceil(float64(results.TotalResults) / float64(newsapi.PageSize))),
+			Results:    results,
+		}
+
+		// O template é executado primeiro em um buffer vazio para que possamos verificar se há erros. Depois disso,
+		// o buffer é gravado no ResponseWriter. Se executarmos o template diretamente no ResponseWriter,
+		// não poderemos verificar se há erros, então esta é a melhor maneira de fazer isso.
+		buf := &bytes.Buffer{}
+		err = tpl.Execute(buf, search)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		buf.WriteTo(w)
 	}
 }
 
@@ -79,5 +121,3 @@ func main() {
 
 	http.ListenAndServe(":"+port, mux)
 }
-
-// de o build levante o server e faça uma busca, logo após no terminal aparecerá o payload da requisição
