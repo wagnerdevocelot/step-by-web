@@ -7,12 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-
-	// importação do pacote time
 	"time"
 
 	"github.com/joho/godotenv"
-	// importação do pacote news.go
 	"github.com/wagnerdevocelot/step-by-web/news"
 )
 
@@ -24,8 +21,6 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tpl.Execute(w, nil)
 }
 
-// Outra abordagem seria utilizar uma clojure para acessar o client newsapi. Esta é potencialmente uma solução melhor
-// pois torna o teste muito mais fácil.
 func searchHandler(newsapi *news.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		u, err := url.Parse(r.URL.String())
@@ -41,9 +36,16 @@ func searchHandler(newsapi *news.Client) http.HandlerFunc {
 			page = "1"
 		}
 
-		fmt.Println("Search Query is: ", searchQuery)
-		fmt.Println("Page is: ", page)
+		// A query e as variáveis ​​de page são passadas como argumentos para FetchEverything()
+		// e a resposta JSON é decodificada e armazenada na variável de results que é
+		// subsequentemente impressa na saída padrão.
+		results, err := newsapi.FetchEverything(searchQuery, page)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
+		fmt.Printf("%+v", results)
 	}
 }
 
@@ -59,9 +61,6 @@ func main() {
 		port = "3000"
 	}
 
-	// Precisamos acessar a variável "newsapi" dentro de searchHandler para que possamos usá-la para fazer requisições
-	// ao newsapi.org. Poderíamos tornar newsapi uma variável de package level scope e atribuir o valor de retorno de NewClient()
-	// a ela para que possamos acessá-la de qualquer lugar no packge main
 	apiKey := os.Getenv("NEWS_API_KEY")
 	if apiKey == "" {
 		log.Fatal("Env: apiKey must be set")
@@ -75,11 +74,10 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("/assets/", http.StripPrefix("/assets/", fs))
-	// A função searchHandler agora aceita um ponteiro para news.Client e retorna uma função anônima
-	// que satisfaz o tipo http.HandlerFunc. Esta função fecha sobre o parâmetro newsapi, o que significa que terá acesso
-	// a ele sempre que for chamado.
 	mux.HandleFunc("/search", searchHandler(newsapi))
 	mux.HandleFunc("/", indexHandler)
 
 	http.ListenAndServe(":"+port, mux)
 }
+
+// de o build levante o server e faça uma busca, logo após no terminal aparecerá o payload da requisição
