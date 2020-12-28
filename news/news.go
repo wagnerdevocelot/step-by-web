@@ -25,6 +25,15 @@ type Article struct {
 	Content     string    `json:"content"`
 }
 
+// FormatPublishedDate esse método formata o campo PublishedAt em Article e retorna uma string
+// no seguinte formato: 10 de janeiro de 2009.
+func (a *Article) FormatPublishedDate() string {
+	year, month, day := a.PublishedAt.Date()
+	return fmt.Sprintf("%v %d, %d", month, day, year)
+	// Para usar este método em seu template, substitua .PublishedAt por .FormatPublishedDate em index.html
+
+}
+
 // Results ...
 type Results struct {
 	Status       string    `json:"status"`

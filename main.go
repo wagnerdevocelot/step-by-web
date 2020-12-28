@@ -19,7 +19,7 @@ var newsapi *news.Client
 
 var tpl = template.Must(template.ParseFiles("index.html"))
 
-// Search representa as quesries feitas pelo usuário
+// Search ...
 type Search struct {
 	Query      string
 	NextPage   int
@@ -27,7 +27,7 @@ type Search struct {
 	Results    *news.Results
 }
 
-// também podemos atualizar o indexHandler para que o template não seja mais executado diretamente no ResponseWriter
+// indexHandler ...
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	buf := &bytes.Buffer{}
 	err := tpl.Execute(buf, nil)
@@ -60,16 +60,12 @@ func searchHandler(newsapi *news.Client) http.HandlerFunc {
 			return
 		}
 
-		// A variável page é convertida em um inteiro e atribuída a nextPage, então uma instância da struct
-		// Search é criada com todos os campos necessários.
 		nextPage, err := strconv.Atoi(page)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// TotalPages é calculado dividindo o número de resultados pelo tamanho da página e arredondando o resultado
-		// para o número inteiro mais próximo. Isso ajudará na hora de adicionar paginação ao webapp.
 		search := &Search{
 			Query:      searchQuery,
 			NextPage:   nextPage,
@@ -77,9 +73,6 @@ func searchHandler(newsapi *news.Client) http.HandlerFunc {
 			Results:    results,
 		}
 
-		// O template é executado primeiro em um buffer vazio para que possamos verificar se há erros. Depois disso,
-		// o buffer é gravado no ResponseWriter. Se executarmos o template diretamente no ResponseWriter,
-		// não poderemos verificar se há erros, então esta é a melhor maneira de fazer isso.
 		buf := &bytes.Buffer{}
 		err = tpl.Execute(buf, search)
 		if err != nil {
