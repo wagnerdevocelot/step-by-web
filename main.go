@@ -27,6 +27,25 @@ type Search struct {
 	Results    *news.Results
 }
 
+// IsLastPage para determinar se a última página de resultados foi alcançada
+func (s *Search) IsLastPage() bool {
+	return s.NextPage >= s.TotalPages
+}
+
+// CurrentPage este botão só deve ser renderizado se a página atual for maior que 1
+func (s *Search) CurrentPage() int {
+	if s.NextPage == 1 {
+		return s.NextPage
+	}
+
+	return s.NextPage - 1
+}
+
+// PreviousPage para obter a página anterior, basta subtrair 1 da página atual
+func (s *Search) PreviousPage() int {
+	return s.CurrentPage() - 1
+}
+
 // indexHandler ...
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	buf := &bytes.Buffer{}
@@ -71,6 +90,11 @@ func searchHandler(newsapi *news.Client) http.HandlerFunc {
 			NextPage:   nextPage,
 			TotalPages: int(math.Ceil(float64(results.TotalResults) / float64(newsapi.PageSize))),
 			Results:    results,
+		}
+
+		// precisamos incrementar NextPage toda vez que uma nova página de resultados é recebida
+		if ok := !search.IsLastPage(); ok {
+			search.NextPage++
 		}
 
 		buf := &bytes.Buffer{}
